@@ -49,7 +49,7 @@ function sed_get_rss($rss_content)
 $sednews_maxitems = $cfg['plugin']['sednews']['maxitems'];
 $sednews_rssfeed = $cfg['plugin']['sednews']['rssfeed'];
 
-$sednews_rssfeed = (!empty($sednews_rssfeed)) ? $sednews_rssfeed : "https://seditio.com.tr/rss";
+$sednews_rssfeed = (!empty($sednews_rssfeed)) ? $sednews_rssfeed : "https://seditio.org/rss";
 $sednews_rssfeed .= (mb_strpos($sednews_rssfeed, '?') === false) ? '?' : '&';
 $sednews_rssfeed .= 'referer=' . urlencode($sys['domain']);
 
