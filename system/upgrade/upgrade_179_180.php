@@ -15,7 +15,7 @@ Description=Database upgrade
 ==================== */
 
 if (!defined('SED_CODE') || !defined('SED_ADMIN')) {
-    die('Wrong URL.');
+	die('Wrong URL.');
 }
 
 $adminmain .= "Clearing the internal SQL cache...<br />";
@@ -124,6 +124,52 @@ $sql = sed_sql_query($sqlqr);
 $sqlqr = "ALTER TABLE " . $cfg['sqldbprefix'] . "users MODIFY user_lastip VARCHAR(45)";
 $adminmain .= sed_cc($sqlqr) . "<br />";
 $sql = sed_sql_query($sqlqr);
+
+$sqlqr = "CREATE UNIQUE INDEX unique_config_owner_cat_name ON " . $cfg['sqldbprefix'] . "config (config_owner, config_cat, config_name)";
+$adminmain .= sed_cc($sqlqr) . "<br />";
+$sql = sed_sql_query($sqlqr);
+
+$sqlqr = "CREATE INDEX idx_config_cat_name ON " . $cfg['sqldbprefix'] . "config (config_cat, config_name)";
+$adminmain .= sed_cc($sqlqr) . "<br />";
+$sql = sed_sql_query($sqlqr);
+
+$sqlqr = "ALTER TABLE " . $cfg['sqldbprefix'] . "config ADD config_id INT(8) NOT NULL AUTO_INCREMENT FIRST, ADD PRIMARY KEY (config_id)";
+$adminmain .= sed_cc($sqlqr) . "<br />";
+$sql = sed_sql_query($sqlqr);
+
+$sqlqr = "ALTER TABLE " . $cfg['sqldbprefix'] . "referers DROP PRIMARY KEY";
+$adminmain .= sed_cc($sqlqr) . "<br />";
+$sql = sed_sql_query($sqlqr);
+
+$sqlqr = "ALTER TABLE " . $cfg['sqldbprefix'] . "referers ADD ref_id INT(11) NOT NULL AUTO_INCREMENT FIRST, ADD PRIMARY KEY (ref_id)";
+$adminmain .= sed_cc($sqlqr) . "<br />";
+$sql = sed_sql_query($sqlqr);
+
+foreach ($sed_dbnames as $table_name) {
+	$table_name = $cfg['sqldbprefix'] . $table_name;
+	$sqlqr = "ALTER TABLE " . $table_name . " CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+	$adminmain .= sed_cc($sqlqr) . "<br />";
+	$sql = sed_sql_query($sqlqr);
+}
+
+$sqlqr = "ALTER TABLE " . $cfg['sqldbprefix'] . "auth DROP KEY auth_code, ADD KEY auth_code (auth_code(190))";
+$adminmain .= sed_cc($sqlqr) . "<br />";
+$sql = sed_sql_query($sqlqr);
+
+$sqlqr = "ALTER TABLE " . $cfg['sqldbprefix'] . "dic DROP KEY dic_code, ADD KEY dic_code (dic_code(190))";
+$adminmain .= sed_cc($sqlqr) . "<br />";
+$sql = sed_sql_query($sqlqr);
+
+$sqlqr = "ALTER TABLE " . $cfg['sqldbprefix'] . "pages DROP KEY page_cat, ADD KEY page_cat (page_cat(190))";
+$adminmain .= sed_cc($sqlqr) . "<br />";
+$sql = sed_sql_query($sqlqr);
+
+foreach ($sed_dbnames as $table_name) {
+	$table_name = $cfg['sqldbprefix'] . $table_name;
+	$sqlqr = "ALTER TABLE " . $table_name . " ENGINE=InnoDB";
+	$adminmain .= sed_cc($sqlqr) . "<br />";
+	$sql = sed_sql_query($sqlqr);
+}
 
 $adminmain .= "-----------------------<br />";
 
