@@ -128,6 +128,26 @@ if (in_array($f_extension, $allow_extension) == FALSE) {
 		$disp_errors = $L['pfs_filetoobigorext'];
 		unlink($cfg['pfs_dir'] . $filename);
 	} else {
+						
+		/* TODO Add to config plugin option Add watermark or insert checkbox in uploader form
+		* Combined resize and watermark processing
+		if (!empty($cfg['gallery_logofile']) && @file_exists($cfg['gallery_logofile'])) {
+			$do_watermark = true;
+			sed_image_process(
+				$cfg['pfs_dir'] . $filename,      // $source
+				$cfg['pfs_dir'] . $filename,      // $dest (overwrite source)
+				0, 			 					// $width
+				0,                              // $height (auto)
+				true,                           // $keepratio (only if resizing)
+				'resize',                       // $type
+				'Width',                        // $dim_priority
+				$cfg['gallery_logojpegqual'],   // $quality
+				$do_watermark,                  // $set_watermark
+				true                            // $preserve_source
+			);
+		}
+		*/
+		
 		$u_size = filesize($cfg['pfs_dir'] . $filename);
 
 		$u_sqlname = $filename;
@@ -182,7 +202,19 @@ if (in_array($f_extension, $allow_extension) == FALSE) {
 			0) ");
 
 		$sql = sed_sql_query("UPDATE $db_pfs_folders SET pff_updated='" . $sys['now'] . "' WHERE pff_id='$folderid'");
-		sed_sm_createthumb($cfg['pfs_dir'] . $filename, $cfg['th_dir'] . $filename, $cfg['th_x'], $cfg['th_y'], $cfg['th_jpeg_quality'], "resize", TRUE);
+
+		sed_image_process(
+			$cfg['pfs_dir'] . $filename,  // $source
+			$cfg['th_dir'] . $filename,   // $dest
+			$cfg['th_x'],                 // $width
+			$cfg['th_y'],                 // $height
+			$cfg['th_keepratio'],         // $keepratio
+			'resize',                     // $type
+			$cfg['th_dimpriority'],       // $dim_priority
+			$cfg['th_jpeg_quality'],      // $quality
+			false,                        // $set_watermark
+			false                         // $preserve_source
+		);
 	}
 }
 
