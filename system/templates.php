@@ -96,9 +96,14 @@ class XTemplate
      * @var array $disallowedFunctions List of functions blocked in 'blacklist' mode.
      * Default includes common dangerous functions for security.
      */
-    public static $disallowedFunctions = [
-        'eval', 'system', 'exec', 'shell_exec', 'passthru', 'proc_open', 'popen', 'phpinfo', 'unlink'
-    ];
+	 
+	 public static $disallowedFunctions = [
+    'eval', 'system', 'exec', 'shell_exec', 'passthru', 'proc_open', 'popen', 'phpinfo', 'unlink', 
+    'fopen', 'file_put_contents', 'readfile', 'chmod', 'chown', 'chgrp', 'file_get_contents', 'file', 
+    'fsockopen', 'pfsockopen', 'curl_exec', 'curl_multi_exec', 'parse_ini_file', 'show_source', 'ini_set',
+    'ini_get', 'ob_start', 'ob_end_flush', 'ob_get_clean', 'ob_get_contents', 'getimagesize', 'set_time_limit', 
+    'assert', 'proc_terminate', 'proc_close', 'stream_socket_server', 'stream_socket_accept', 'proc_nice', 'dl'
+];
 
     /**
      * Configures global settings for XTemplate instances. Must be called before creating instances.
