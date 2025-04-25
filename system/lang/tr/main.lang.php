@@ -141,9 +141,6 @@ $L['Inactive'] = "Pasif";
 $L['IRC'] = "IRC";
 $L['Item'] = "Öğe";
 $L['Items'] = "Öğeler";
-$L['Journal'] = "Weblog";
-$L['Journals'] = "Webloglar";
-$L['Journalpage'] = "Weblog sayfası";
 
 $L['Key'] = "Anahtar";
 $L['kb'] = "KB";

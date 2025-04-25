@@ -18,5 +18,3 @@ Description=
 $L['upl_mainimage'] = "Varsayılan";
 $L['upl_upload_images'] = "Resimleri yükle";
 $L['upl_choose_from_pfs'] = "PFS den seç";
-
-?>

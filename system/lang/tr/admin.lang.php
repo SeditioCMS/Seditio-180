@@ -271,16 +271,6 @@ $L['cfg_trash_page'] = array("Sayfalar için çöp kutusunu kullan", "");
 $L['cfg_trash_pm'] = array("Özel mesajlar için çöp kutusunu kullan", "");
 $L['cfg_trash_user'] = array("Kullanıcılar için çöp kutusunu kullan", "");
 
-$L['cfg_parser_vid'] = array("Videolar için BBcode kullanmaya izin ver", "");        // Yeni v120
-$L['cfg_parser_vid_autolink'] = array("Video sitelerine ait URL'leri otomatik bağla", "");                        // Yeni v120
-$L['cfg_parsebbcodecom'] = array("Yorumlar ve özel mesajlarda BBcode çözümlemesi", "");
-$L['cfg_parsebbcodepages'] = array("Sayfalarda BBcode çözümlemesi", "");
-$L['cfg_parsebbcodeusertext'] = array("Kullanıcı imzasında BBcode çözümlemesi", "");
-$L['cfg_parsebbcodeforums'] = array("Forumlarda BBcode çözümlemesi", "");
-$L['cfg_parsesmiliescom'] = array("Yorumlar ve özel mesajlarda smilies çözümlemesi", "");
-$L['cfg_parsesmiliespages'] = array("Sayfalarda smilies çözümlemesi", "");
-$L['cfg_parsesmiliesusertext'] = array("Kullanıcı imzasında smilies çözümlemesi", "");
-$L['cfg_parsesmiliesforums'] = array("Forumlarda smilies çözümlemesi", "");
 $L['cfg_color_group'] = array("Kullanıcı gruplarını renkli yap", "Varsayılan: Hayır, daha iyi performans için");  // Yeni v175
 $L['cfg_ajax'] = array("AJAX'ı etkinleştir", "");  // Yeni v175
 $L['cfg_enablemodal'] = array("Modal pencereleri etkinleştir", "");  // Yeni v175
