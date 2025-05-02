@@ -228,6 +228,48 @@ function sed_ajax_flush($res, $ajax, $content_type = 'text/html')
 }
 
 /**
+ * Generates a formatted string of HTML attributes
+ *
+ * Accepts attributes as a string or array and returns a space-separated string
+ * of HTML attributes for use in tags. JavaScript event attributes (e.g., onClick)
+ * are not escaped to preserve functionality.
+ *
+ * @param string|array $attrs Attributes as a string or key-value array
+ * @return string Formatted attribute string
+ */
+function sed_attr($attrs)
+{
+	$attributes = '';
+
+	// List of JavaScript event attributes that should not be escaped
+	$no_escape_attrs = [
+		'onclick', 'ondblclick', 'onmouseover', 'onmouseout', 'onmousemove',
+		'onmousedown', 'onmouseup', 'onkeydown', 'onkeypress', 'onkeyup',
+		'onchange', 'oninput', 'onsubmit', 'onfocus', 'onblur', 'onload',
+		'onunload', 'onerror', 'onresize', 'onscroll', 'oncontextmenu',
+		'onselect', 'ondrag', 'ondrop'
+	];
+
+	if (is_array($attrs)) {
+		foreach ($attrs as $key => $value) {
+			$key_lower = mb_strtolower($key);
+			$escapedKey = htmlspecialchars($key);
+			if (in_array($key_lower, $no_escape_attrs)) {
+				$escapedValue = $value;
+			} else {
+				$escapedValue = htmlspecialchars($value);
+			}
+
+			$attributes .= " $escapedKey=\"$escapedValue\"";
+		}
+	} elseif (is_string($attrs) && !empty($attrs)) {
+		$attributes = " $attrs";
+	}
+
+	return $attributes;
+}
+
+/**
  * Generation avatar from first username letter
  *
  * @param int $uid
@@ -804,7 +846,7 @@ function sed_build_comments($code, $url, $display, $allow = TRUE)
 				if ($quote > 0) {
 					$sqlq = sed_sql_query("SELECT com_id, com_author, com_text FROM $db_com WHERE com_id = '$quote' LIMIT 1");
 					if ($rowq = sed_sql_fetchassoc($sqlq)) {
-						$rtext = "<blockquote><a href=\"" . sed_url($url_part, $url_params . $lurl, "#" . $rowq['com_id']) . "\">#" . $rowq['com_id'] . "</a> <strong>" . $rowq['com_author'] . " :</strong><br />" . $rowq['com_text'] . "</blockquote><br />";
+						$rtext = "<blockquote>" . sed_link(sed_url($url_part, $url_params . $lurl, "#" . $rowq['com_id']), "#" . $rowq['com_id']) . " <strong>" . $rowq['com_author'] . " :</strong><br />" . $rowq['com_text'] . "</blockquote><br />";
 					}
 				}
 				$pfs = ($usr['id'] > 0) ? sed_build_pfs($usr['id'], "newcomment", "rtext", $L['Mypfs']) : '';
@@ -886,9 +928,12 @@ function sed_build_comments($code, $url, $display, $allow = TRUE)
 					$com_gup = $sys['now_offset'] - ($row['com_date'] + $cfg['maxtimeallowcomedit'] * 60);
 					$allowed_time = ($usr['isowner_com'] && !$usr['isadmin']) ? " - " . sed_build_timegap($sys['now_offset'] + $com_gup, $sys['now_offset']) . $L['com_gup'] : '';
 
-					$com_quote = ($usr['id'] > 0) ? "<a href=\"" . sed_url($url_part, $url_params . $lurl . "&quote=" . $row['com_id'] . "&" . sed_xg()) . "#nc" . "\" class=\"btn btn-adm\">" . $L['Quote'] . "</a>&nbsp;" : "";
+					$com_quote = ($usr['id'] > 0) ? sed_link(sed_url($url_part, $url_params . $lurl . "&quote=" . $row['com_id'] . "&" . sed_xg(), "#nc"), $L['Quote'], array('class' => 'btn btn-adm')) . "&nbsp;" : "";
 
-					$com_admin = ($usr['isadmin_com'] || $usr['isowner_com']) ? "<a href=\"" . sed_url($url_part, $url_params . $lurl . "&a=edit&b=" . $row['com_id'] . "&" . sed_xg(), "#c" . $row['com_id']) . "\" title=\"" . $L['Edit'] . $allowed_time . "\" class=\"btn btn-adm\">" . $L['Edit'] . "</a>&nbsp;<a href=\"" . sed_url($url_part, $url_params . $lurl . "&n=delete&b=" . $row['com_id'] . "&" . sed_xg()) . "\" class=\"btn btn-adm\">" . $L['Delete'] . "</a>&nbsp;" . $L['Ip'] . ":" . sed_build_ipsearch($row['com_authorip']) : '';
+					$com_admin = ($usr['isadmin_com'] || $usr['isowner_com']) ?
+						sed_link(sed_url($url_part, $url_params . $lurl . "&a=edit&b=" . $row['com_id'] . "&" . sed_xg(), "#c" . $row['com_id']), $L['Edit'], array('title' => $L['Edit'] . $allowed_time, 'class' => 'btn btn-adm')) . "&nbsp;" .
+						sed_link(sed_url($url_part, $url_params . $lurl . "&n=delete&b=" . $row['com_id'] . "&" . sed_xg()), $L['Delete'], array('class' => 'btn btn-adm')) . "&nbsp;" .
+						$L['Ip'] . ":" . sed_build_ipsearch($row['com_authorip']) : '';
 
 					$com_authorlink = ($row['com_authorid'] > 0 && $row['user_id'] > 0) ? sed_build_user($row['com_authorid'], $com_author, $row['user_maingrp']) : $com_author;
 
@@ -954,13 +999,13 @@ function sed_build_comments($code, $url, $display, $allow = TRUE)
 		$res_display = '';
 	}
 
-	$res = "<a href=\"" . sed_url($url_part, $url_params . $lurl) . "\">" . $out['ic_comment'];
-
+	$nbcomment = "";
+	$nbcomment_link = $out['ic_comment'];
 	if ($cfg['countcomments']) {
 		$nbcomment = sed_sql_result(sed_sql_query("SELECT COUNT(*) FROM $db_com where com_code='$code'"), 0, "COUNT(*)");
-		$res .= " (" . $nbcomment . ")";
+		$nbcomment_link .= " (" . $nbcomment . ")";
 	}
-	$res .= "</a>";
+	$res = sed_link(sed_url($url_part, $url_params . $lurl), $nbcomment_link);
 
 	return (array($res, $res_display, $nbcomment));
 }
@@ -993,7 +1038,8 @@ function sed_build_country($flag)
 	global $sed_countries;
 
 	$flag = (empty($flag)) ? '00' : $flag;
-	$result = "<a href=\"" . sed_url("users", "f=country_" . $flag) . "\">" . $sed_countries[$flag] . "</a>";
+
+	$result = sed_link(sed_url("users", "f=country_" . $flag), $sed_countries[$flag]);
 	return ($result);
 }
 
@@ -1038,7 +1084,7 @@ function sed_build_email($email, $hide = false)
 		$result = $L['Hidden'];
 	} elseif (!empty($email) && mb_strpos($email, '@') !== FALSE) {
 		$email = sed_cc($email);
-		$result = "<a href=\"mailto:" . $email . "\">" . $email . "</a>";
+		$result = sed_link("mailto:" . $email, $email);
 	} else {
 		$result = $email;
 	}
@@ -1055,7 +1101,7 @@ function sed_build_email($email, $hide = false)
 function sed_build_flag($flag)
 {
 	$flag = (empty($flag)) ? '00' : $flag;
-	$result = "<a href=\"" . sed_url("users", "f=country_" . $flag) . "\"><img src=\"system/img/flags/f-" . $flag . ".gif\" alt=\"\" /></a>";
+	$result = sed_link(sed_url("users", "f=country_" . $flag), "<img src=\"system/img/flags/f-" . $flag . ".gif\" alt=\"\" />");
 	return ($result);
 }
 
@@ -1077,13 +1123,15 @@ function sed_build_forums($sectionid, $title, $category, $link = true, $parentca
 
 	if ($link) {
 		foreach ($pathcodes as $k => $x) {
-			$tmp[] = "<a href=\"" . sed_url("forums", "c=" . $x, "#" . $x) . "\">" . sed_cc($sed_forums_str[$x]['title']) . "</a>";
+			$ptitle = sed_cc($sed_forums_str[$x]['title']);
+			$tmp[] = sed_link(sed_url("forums", "c=" . $x, "#" . $x), $ptitle);
 		}
 
 		if (is_array($parentcat)) {
-			$tmp[] =  "<a href=\"" . sed_url("forums", "m=topics&s=" . $parentcat['sectionid']) . "\">" . sed_cc($parentcat['title']) . "</a>";
+			$ptitle = sed_cc($parentcat['title']);
+			$tmp[] = sed_link(sed_url("forums", "m=topics&s=" . $parentcat['sectionid'] . "&al=" . $ptitle), $ptitle);
 		}
-		$tmp[] = "<a href=\"" . sed_url("forums", "m=topics&s=" . $sectionid) . "\">" . sed_cc($title) . "</a>";
+		$tmp[] = sed_link(sed_url("forums", "m=topics&s=" . $sectionid . "&al=" . $title), sed_cc($title));
 	} else {
 		foreach ($pathcodes as $k => $x) {
 			$tmp[] = sed_cc($sed_forums_str[$x]['title']);
@@ -1117,14 +1165,15 @@ function sed_build_forums_bc($sectionid, $title, $category, $parentcat = false)
 	$pathcodes = explode('.', $sed_forums_str[$category]['path']);
 
 	foreach ($pathcodes as $k => $x) {
-		$title = sed_cc($sed_forums_str[$x]['title']);
-		$urlpaths[sed_url("forums", "c=" . $x, "#" . $x)] = $title;
+		$ptitle = sed_cc($sed_forums_str[$x]['title']);
+		$urlpaths[sed_url("forums", "c=" . $x, "#" . $x)] = $ptitle;
 	}
 
 	if (is_array($parentcat)) {
-		$title = sed_cc($parentcat['title']);
-		$urlpaths[sed_url("forums", "m=topics&s=" . $parentcat['sectionid'] . "&al=" . $title)] = $title;
+		$ptitle = sed_cc($parentcat['title']);
+		$urlpaths[sed_url("forums", "m=topics&s=" . $parentcat['sectionid'] . "&al=" . $ptitle)] = $ptitle;
 	}
+
 	$title = sed_cc($title);
 	$urlpaths[sed_url("forums", "m=topics&s=" . $sectionid . "&al=" . $title)] = $title;
 }
@@ -1157,7 +1206,7 @@ function sed_build_list_bc($cat)
  */
 function sed_build_gallery($id, $c1, $c2, $title)
 {
-	return ("<a href=\"javascript:sedjs.gallery('" . $id . "','" . $c1 . "','" . $c2 . "')\">" . $title . "</a>");
+	return sed_link("javascript:sedjs.gallery('" . $id . "','" . $c1 . "','" . $c2 . "')", $title);
 }
 
 /** 
@@ -1175,12 +1224,12 @@ function sed_build_group($grpid)
 	} else {
 		if ($sed_groups[$grpid]['hidden']) {
 			if (sed_auth('users', 'a', 'A')) {
-				$res = "<a href=\"" . sed_url("users", "gm=" . $grpid) . "\">" . $sed_groups[$grpid]['title'] . "</a> (" . $L['Hidden'] . ')';
+				$res = sed_link(sed_url("users", "gm=" . $grpid), $sed_groups[$grpid]['title']) . ' (' . $L['Hidden'] . ')';
 			} else {
 				$res = $L['Hidden'];
 			}
 		} else {
-			$res = "<a href=\"" . sed_url("users", "gm=" . $grpid) . "\">" . $sed_groups[$grpid]['title'] . "</a>";
+			$res = sed_link(sed_url("users", "gm=" . $grpid), $sed_groups[$grpid]['title']);
 		}
 	}
 	return ($res);
@@ -1215,7 +1264,7 @@ function sed_build_groupsms($userid, $edit = false, $maingrp = 0)
 			if (!($sed_groups[$k]['hidden'] && !sed_auth('users', 'a', 'A'))) {
 				$res .= "<span class=\"radio-item\"><input type=\"radio\" class=\"radio\" id=\"rusermaingrp_$k\" name=\"rusermaingrp\" value=\"$k\" " . $checked_maingrp . " " . $readonly_maingrp . " /><label for=\"rusermaingrp_$k\"></label></span>\n";
 				$res .= "<span class=\"checkbox-item\"><input type=\"checkbox\" class=\"checkbox\" id=\"rusergroupsms_$k\" name=\"rusergroupsms[$k]\" " . $checked . " $readonly /><label for=\"rusergroupsms_$k\"></label></span>\n";
-				$res .= ($k == 1) ? $sed_groups[$k]['title'] : "<a href=\"" . sed_url("users", "g=" . $k) . "\">" . $sed_groups[$k]['title'] . "</a>";
+				$res .= ($k == 1) ? $sed_groups[$k]['title'] : sed_link(sed_url("users", "g=" . $k), $sed_groups[$k]['title']);
 				$res .= ($sed_groups[$k]['hidden']) ? ' (' . $L['Hidden'] . ')' : '';
 				$res .= "<br />";
 			}
@@ -1234,7 +1283,7 @@ function sed_build_groupsms($userid, $edit = false, $maingrp = 0)
 function sed_build_ipsearch($ip)
 {
 	if (!empty($ip)) {
-		$result = "<a href=\"" . sed_url("admin", "m=manage&p=ipsearch&a=search&id=" . $ip . "&" . sed_xg()) . "\">" . $ip . "</a>";
+		$result = sed_link(sed_url("admin", "m=manage&p=ipsearch&a=search&id=" . $ip . "&" . sed_xg()), $ip);
 	}
 	return ($result);
 }
@@ -1250,7 +1299,7 @@ function sed_build_skype($skype)
 	$result = '';
 	if (!empty($skype)) {
 		$skype = sed_cc($skype);
-		$result = "<a href=\"skype:" . $skype . "?call\">" . $skype . "</a>";
+		$result = sed_link("skype:" . $skype . "?call", $skype);
 	}
 	return ($result);
 }
@@ -1287,9 +1336,9 @@ function sed_build_pfs($id, $c1, $c2, $title)
 	} else {
 		$modal = ($cfg['enablemodal']) ? ',1' : '';
 		if ($id == 0) {
-			$res = "<a href=\"javascript:sedjs.pfs('0','" . $c1 . "','" . $c2 . "'" . $modal . ")\">" . $title . "</a>";
+			$res = sed_link("javascript:sedjs.pfs('0','" . $c1 . "','" . $c2 . "'" . $modal . ")", $title);
 		} elseif ($sed_groups[$usr['maingrp']]['pfs_maxtotal'] > 0 && $sed_groups[$usr['maingrp']]['pfs_maxfile'] > 0 && sed_auth('pfs', 'a', 'R')) {
-			$res = "<a href=\"javascript:sedjs.pfs('" . $id . "','" . $c1 . "','" . $c2 . "'" . $modal . ")\">" . $title . "</a>";
+			$res = sed_link("javascript:sedjs.pfs('" . $id . "','" . $c1 . "','" . $c2 . "'" . $modal . ")", $title);
 		} else {
 			$res = '';
 		}
@@ -1306,7 +1355,7 @@ function sed_build_pfs($id, $c1, $c2, $title)
 function sed_build_pm($user)
 {
 	global $usr, $cfg, $L, $out;
-	$result = "<a href=\"" . sed_url("pm", "m=send&to=" . $user) . "\">" . $out['ic_pm'] . "</a>";
+	$result = sed_link(sed_url("pm", "m=send&to=" . $user), $out['ic_pm']);
 	return ($result);
 }
 
@@ -1435,12 +1484,12 @@ function sed_build_ratings($code, $url, $display, $allow = true)
 	$res = "<div class=\"rating-box\" id=\"rat-" . $code . "\"><ul class=\"rating s" . $rating_cntround . "\">\n";
 	for ($i = 1; $i <= 10; $i++) {
 		$onclick = "javascript:sedjs.ajaxbind({'url': '" . sed_url($url_part, $url_params . "&ratings=1&display=1&ina=send&ajax=1&newrate=" . $i . "&" . sed_xg()) . "', 'format':  'html', 'method':  'POST', 'update':  '#rat-" . $code . "', 'loading': '#rat-" . $code . "'});";
-		$res .= "<li class=\"s" . $i . "\"><a href=\"javascript:void(0);\" onClick=\"" . $onclick . "\" title=\"" . $i . " - " . $L['rat_choice' . $i] . "\">" . $i . " - " . $L['rat_choice' . $i] . "</a></li>\n";
+		$res .= "<li class=\"s" . $i . "\">" . sed_link('javascript:void(0);', $i . " - " . $L['rat_choice' . $i], array('onClick' => $onclick, 'title' => $i . " - " . $L['rat_choice' . $i])) . "</li>\n";
 	}
 	$res .= "</ul></div>";
 
 	if (($usr['id'] == 0) || ($alr_rated > 0) || !$cfg['ajax']) {
-		$res = "<a href=\"" . sed_url($url_part, $url_params . "&ratings=1") . "\"><img src=\"skins/" . $usr['skin'] . "/img/system/vote" . $rating_cntround . ".gif\" alt=\"\" /></a>";
+		$res = sed_link(sed_url($url_part, $url_params . "&ratings=1"), "<img src=\"skins/" . $usr['skin'] . "/img/system/vote" . $rating_cntround . ".gif\" alt=\"\" />");
 	}
 
 	sed_ajax_flush($res, $ajax);  // AJAX Output
@@ -1651,7 +1700,7 @@ function sed_build_url($text, $maxlen = 64)
 			$url = 'http://' . $url;
 		}
 
-		$text = "<a href=\"" . $url . "\">" . sed_cutstring($text, $maxlen) . "</a>";
+		$text = sed_link($url, sed_cutstring($text, $maxlen));
 	}
 	return ($text);
 }
@@ -1691,7 +1740,7 @@ function sed_build_user($id, $user, $group = '')  // Modify in v175
 	} elseif ($id == 0) {
 		$result = '';
 	} else {
-		$result = (!empty($user)) ? "<a href=\"" . sed_url("users", "m=details&id=" . $id) . "\"><span style=\"color:" . $color . ";\">" . $user . "</span></a>" : '?';
+		$result = (!empty($user)) ? sed_link(sed_url("users", "m=details&id=" . $id), "<span style=\"color:" . $color . ";\">" . $user . "</span></a>") : '?';
 	}
 	return ($result);
 }
@@ -2147,7 +2196,7 @@ function sed_cutreadmore($text, $url)
 
 	if ($readmore > 0) {
 		$text = mb_substr($text, 0, $readmore) . " ";
-		$text .= sprintf($cfg['readmore'], "<a href=\"" . $url . "\">" . $L['ReadMore'] . "</a>");
+		$text .= sprintf($cfg['readmore'], sed_link($url, $L['ReadMore']));
 	}
 
 	return ($text);
@@ -2258,7 +2307,7 @@ function sed_diefatal($text = 'Reason is unknown.', $title = 'Fatal error')
 {
 	global $cfg;
 	$disp = "<div style=\"font:14px Segoe UI, Verdana, Arial; border:1px dashed #CCCCCC; padding:8px; margin:16px;\">";
-	$disp .= (isset($cfg['mainurl']) && isset($cfg['mainurl'])) ? "<strong><a href=\"" . $cfg['mainurl'] . "\">" . $cfg['maintitle'] . "</a></strong><br />" : "";
+	$disp .= (isset($cfg['mainurl']) && isset($cfg['mainurl'])) ? "<strong>" . sed_link($cfg['mainurl'], $cfg['maintitle']) . "</strong><br />" : "";
 	$disp .= @date('Y-m-d H:i') . ' / ' . $title . ' : ' . $text;
 	$disp .= "</div>";
 	die($disp);
@@ -3084,16 +3133,24 @@ function sed_infoget($file, $limiter = 'SED', $maxsize = 32768)
  */
 function sed_radio_item($name, $value, $label = '', $id = '', $checked = false, $onclick = '', $additionalAttributes = array())
 {
-	$id = (empty($id)) ? $name : $name . "_" . $id;
-	$checked = ($checked === true) ? " checked" : "";
-	$onclick = ($onclick) ? " onclick=\"" . $onclick . "\"" : "";
+	$id = (empty($id)) ? $name : $name . '_' . $id;
 
-	$htmlAttributes = "";
-	foreach ($additionalAttributes as $attribute => $attrValue) {
-		$htmlAttributes .= " " . $attribute . "=\"" . $attrValue . "\"";
+	$attributes = array(
+		'type' => 'radio',
+		'class' => 'radio',
+		'id' => $id,
+		'name' => $name,
+		'value' => $value
+	);
+	if ($checked) {
+		$attributes['checked'] = 'checked';
 	}
+	if ($onclick) {
+		$attributes['onclick'] = $onclick;
+	}
+	$attributes = array_merge($attributes, $additionalAttributes);
 
-	$result = "<span class=\"radio-item\"><input type=\"radio\" class=\"radio\" id=\"" . $id . "\" name=\"" . $name . "\" value=\"" . $value . "\"" . $checked . $onclick . $htmlAttributes . " /><label for=\"" . $id . "\">" . $label . "</label></span>";
+	$result = '<span class="radio-item"><input' . sed_attr($attributes) . ' /><label for="' . $id . '">' . $label . '</label></span>';
 
 	return $result;
 }
@@ -3223,16 +3280,20 @@ function sed_translit_seourl($value)
 
 function sed_textbox($name, $value, $size = 56, $maxlength = 255, $class = "text", $disabled = false, $type = "text", $additionalAttributes = array())
 {
-	$add_disabled = ($disabled) ? " disabled=\"disabled\"" : "";
-
-	$htmlAttributes = "";
-	foreach ($additionalAttributes as $attribute => $attrValue) {
-		$htmlAttributes .= " " . $attribute . "=\"" . $attrValue . "\"";
+	$attributes = array(
+		'type' => $type,
+		'class' => $class,
+		'name' => $name,
+		'value' => sed_cc($value),
+		'size' => $size,
+		'maxlength' => $maxlength
+	);
+	if ($disabled) {
+		$attributes['disabled'] = 'disabled';
 	}
+	$attributes = array_merge($attributes, $additionalAttributes);
 
-	$res = "<input type=\"" . $type . "\" class=\"" . $class . "\" name=\"" . $name . "\" value=\"" . sed_cc($value) . "\" size=\"" . $size . "\" maxlength=\"" . $maxlength . "\"" . $add_disabled . $htmlAttributes . " />";
-
-	return ($res);
+	return '<input' . sed_attr($attributes) . ' />';
 }
 
 
@@ -3263,16 +3324,19 @@ function sed_textarea($name, $value, $rows, $cols, $editor = "noeditor", $disabl
 
 	$escapedValue = sed_cc(sed_checkmore($value, false), ENT_QUOTES);
 
-	$htmlAttributes = "";
-	foreach ($additionalAttributes as $attribute => $attrValue) {
-		$htmlAttributes .= " " . $attribute . "=\"" . $attrValue . "\"";
+	$attributes = array(
+		'name' => $name,
+		'class' => $class,
+		'rows' => $rows,
+		'cols' => $cols,
+		'data-editor' => $editor
+	);
+	if ($disabled) {
+		$attributes['disabled'] = 'disabled';
 	}
+	$attributes = array_merge($attributes, $additionalAttributes);
 
-	$disabledAttr = ($disabled) ? ' disabled="disabled"' : '';
-
-	$res = "<textarea name=\"" . $name . "\" class=\"" . $class . "\" rows=\"" . $rows . "\" cols=\"" . $cols . "\" data-editor=\"" . $editor . "\"" . $htmlAttributes . $disabledAttr . ">" . $escapedValue . "</textarea>";
-
-	return $res;
+	return '<textarea' . sed_attr($attributes) . '>' . $escapedValue . '</textarea>';
 }
 
 /** 
@@ -3284,39 +3348,57 @@ function sed_textarea($name, $value, $rows, $cols, $editor = "noeditor", $disabl
  * @param bool $disabled Disable the checkbox (true or false) 
  * @return string HTML representation of the checkbox(es) 
  */
-
 function sed_checkbox($name, $data = '', $check_data = FALSE, $disabled = FALSE, $additionalAttributes = array())
 {
 	if (empty($data) || !is_array($data)) {
-		$val = (empty($data)) ? "1" : $data;
+		$val = (empty($data)) ? '1' : $data;
 
-		$checked = ($check_data) ? " checked" : "";
-		$disabledAttr = ($disabled) ? " disabled" : "";
-
-		$htmlAttributes = "";
-		foreach ($additionalAttributes as $attribute => $attrValue) {
-			$htmlAttributes .= " " . $attribute . "=\"" . $attrValue . "\"";
+		$attributes = array(
+			'type' => 'checkbox',
+			'class' => 'checkbox',
+			'id' => $name,
+			'name' => $name,
+			'value' => $val
+		);
+		if ($check_data) {
+			$attributes['checked'] = 'checked';
 		}
+		if ($disabled) {
+			$attributes['disabled'] = 'disabled';
+		}
+		$attributes = array_merge($attributes, $additionalAttributes);
 
-		$result = "<span class=\"checkbox-item\"><input type=\"checkbox\" class=\"checkbox\" id=\"" . $name . "\" name=\"" . $name . "\"" . $checked . $disabledAttr . " value=\"" . $val . "\"" . $htmlAttributes . " /><label for=\"" . $name . "\">&nbsp;</label></span>";
+		$result = '<span class="checkbox-item"><input' . sed_attr($attributes) . ' /><label for="' . $name . '"> </label></span>';
 	} else {
-		if (!is_array($data)) $data = explode(',', $data);
-		if (!is_array($check_data)) $check_data = explode(',', $check_data);
+		if (!is_array($data)) {
+			$data = explode(',', $data);
+		}
+		if (!is_array($check_data)) {
+			$check_data = explode(',', $check_data);
+		}
 		$jj = 0;
 		$result = '';
 		foreach ($data as $key => $v) {
 			$jj++;
-			$isChecked = (is_array($check_data) && in_array($key, $check_data)) ? " checked" : "";
-
-			$htmlAttributes = "";
-			foreach ($additionalAttributes as $attribute => $attrValue) {
-				$htmlAttributes .= " " . $attribute . "=\"" . $attrValue . "\"";
+			$attributes = array(
+				'type' => 'checkbox',
+				'class' => 'checkbox',
+				'id' => $name . '_' . $jj,
+				'name' => $name . '[]',
+				'value' => $key
+			);
+			if (is_array($check_data) && in_array($key, $check_data)) {
+				$attributes['checked'] = 'checked';
 			}
+			if ($disabled) {
+				$attributes['disabled'] = 'disabled';
+			}
+			$attributes = array_merge($attributes, $additionalAttributes);
 
-			$result .= '<span class="checkbox-item"><input type="checkbox" class="checkbox" id="' . $name . "_" . $jj . '" name="' . $name . '[]' . '" value="' . $key . '"' . $isChecked . $htmlAttributes . ' /><label for="' . $name . "_" . $jj . '">' . $v . '</label></span>';
+			$result .= '<span class="checkbox-item"><input' . sed_attr($attributes) . ' /><label for="' . $name . '_' . $jj . '">' . $v . '</label></span>';
 		}
 	}
-	return ($result);
+	return $result;
 }
 
 /** 
@@ -3607,6 +3689,21 @@ function sed_structure_sort($a, $b, $field = 'structure_path')
 	return 0;
 }
 
+/**
+ * Generates an HTML anchor tag quickly
+ *
+ * Takes a URL, link text, and additional attributes to create a properly formatted <a> tag.
+ *
+ * @param string $url The URL for the href attribute
+ * @param string $text The text inside the <> tag
+ * @param string|array $attrs Additional attributes as a string or key-value array
+ * @return string The HTML code for the link
+ */
+function sed_link($url, $text, $attrs = '')
+{
+	return '<a href="' . $url . '"' . sed_attr($attrs) . '>' . $text . '</a>';
+}
+
 /** 
  * Logs an event 
  * 
@@ -3723,17 +3820,17 @@ function sed_menu_tree($menus, $parent_id, $level = 0, $only_parent = false, $on
 			foreach ($menus[$parent_id] as $item) {
 				$item['menu_url'] = ($item['menu_url'] == '/') ? $sys['dir_uri'] : $item['menu_url'];
 				if ($only_childrensonlevel) {
-					$tree .= "<li><a href=\"" . $item['menu_url'] . "\" data-mid=\"" . $item['menu_id'] . "\">" . $item['menu_title'] . "</a></li>";
+					$tree .= "<li>" . sed_link($item['menu_url'],  $item['menu_title'], array('data-mid' => $item['menu_id'])) . "</li>";
 				} else {
 					$has_children = isset($menus[$item['menu_id']]) ? " class=\"has-children\"" : "";
-					$tree .= "<li" . $has_children . "><a href=\"" . $item['menu_url'] . "\" data-mid=\"" . $item['menu_id'] . "\">" . $item['menu_title'] . "</a>";
+					$tree .= "<li" . $has_children . ">" . sed_link($item['menu_url'],  $item['menu_title'], array('data-mid' => $item['menu_id']));
 					$tree .=  sed_menu_tree($menus, $item['menu_id'], $level);
 					$tree .= "</li>";
 				}
 			}
 		} elseif ($only_parent) {
 			$item = $menus[$parent_id];
-			$tree = (!empty($item['menu_url'])) ? "<a href=\"" . $item['menu_url'] . "\" data-mid=\"" . $item['menu_id'] . "\">" . $item['menu_title'] . "</a>" : "<span data-mid=\"" . $item['menu_id'] . "\">" . $item['menu_title'] . "</span>";
+			$tree = (!empty($item['menu_url'])) ? sed_link($item['menu_url'],  $item['menu_title'], array('data-mid' => $item['menu_id'])) : "<span data-mid=\"" . $item['menu_id'] . "\">" . $item['menu_title'] . "</span>";
 			return $tree;
 		}
 		$tree .= "</ul>";
@@ -3929,7 +4026,7 @@ function sed_pagination($url, $current, $entries, $perpage, $characters = 'd')
 
 	while ($i < $cur_left) {
 		$k = ($i - 1) * $perpage;
-		$res .= sprintf($cfg['pagination'], "<a href=\"" . (($k == 0) ? $url : $address . $k) . "\" class=\"page-link\">" . ($i) . "</a>");
+		$res .= sprintf($cfg['pagination'], sed_link((($k == 0) ? $url : $address . $k),  $i, array('class' => 'page-link')));
 		$i *= ($n % 2) ? 2 : 5;
 		$n++;
 	}
@@ -3938,7 +4035,7 @@ function sed_pagination($url, $current, $entries, $perpage, $characters = 'd')
 		if (($j == $currentpage) && ($j != $totalpages)) {
 			$res .= sprintf($cfg['pagination_cur'], ($j));
 		} elseif ($j != $totalpages) {
-			$res .= sprintf($cfg['pagination'], "<a href=\"" . (($k == 0) ? $url : $address . $k) . "\" class=\"page-link\">" . ($j) . "</a>");
+			$res .= sprintf($cfg['pagination'], sed_link((($k == 0) ? $url : $address . $k),  $j, array('class' => 'page-link')));
 		}
 	}
 	while ($i <= $cur_right) {
@@ -3947,7 +4044,7 @@ function sed_pagination($url, $current, $entries, $perpage, $characters = 'd')
 	}
 	while ($i < $totalpages) {
 		$k = ($i - 1) * $perpage;
-		$res .= sprintf($cfg['pagination'], "<a href=\"" . (($k == 0) ? $url : $address . $k) . "\" class=\"page-link\">" . ($i) . "</a>");
+		$res .= sprintf($cfg['pagination'], sed_link((($k == 0) ? $url : $address . $k),  $i, array('class' => 'page-link')));
 		$i *= ($n % 2) ? 5 : 2;
 		$n++;
 	}
@@ -3955,7 +4052,7 @@ function sed_pagination($url, $current, $entries, $perpage, $characters = 'd')
 	if ($currentpage == $totalpages) {
 		$res .= sprintf($cfg['pagination_cur'], ($totalpages));
 	} else {
-		$res .= sprintf($cfg['pagination'], "<a href=\"" . (($k == 0) ? $url : $address . $k) . "\" class=\"page-link\">" . ($totalpages) . "</a>");
+		$res .= sprintf($cfg['pagination'], sed_link((($k == 0) ? $url : $address . $k),  $totalpages, array('class' => 'page-link')));
 	}
 	return ($res);
 }
@@ -3986,12 +4083,12 @@ function sed_pagination_pn($url, $current, $entries, $perpage, $res_array = FALS
 		} else {
 			$address_prev = $address . $prevpage;
 		}
-		$res_l = "<a href=\"" . $address_prev . "\" class=\"page-link page-prev\">" . $cfg['pagination_arrowleft'] . " " . $L['Previous'] . "</a>";
+		$res_l = sed_link($address_prev, $cfg['pagination_arrowleft'] . " " . $L['Previous'], array('class' => 'page-link page-prev'));
 	}
 
 	if (($current + $perpage) < $entries) {
 		$nextpage = $current + $perpage;
-		$res_r = "<a href=\"" . $address . $nextpage . "\" class=\"page-link page-next\">" . $L['Next'] . " " . $cfg['pagination_arrowright'] . "</a>";
+		$res_r = sed_link($address . $nextpage,  $L['Next'] . " " . $cfg['pagination_arrowright'], array('class' => 'page-link page-next'));
 	}
 	if ($res_array) {
 		return (array($res_l, $res_r));
@@ -4011,8 +4108,6 @@ function sed_pagination_pn($url, $current, $entries, $perpage, $res_array = FALS
  */
 function sed_parse($text, $parse_bbcodes = TRUE, $parse_smilies = TRUE, $parse_newlines = TRUE)
 {
-	global  $cfg, $sys, $sed_smilies, $L;
-
 	return (sed_html($text));
 }
 
@@ -4095,7 +4190,7 @@ function sed_redirect($url, $base64 = false)
 		<meta http-equiv=\"content-type\" content=\"text/html; charset=iso-8859-1\" />
 		<meta http-equiv=\"refresh\" content=\"0; url=" . $url . "\" />
 		<title>Redirecting...</title></head>
-		<body>Redirecting to <a href=\"" . $url . "\">" . $cfg['mainurl'] . "/" . $url . "</a>
+		<body>Redirecting to " . sed_link($url, $cfg['mainurl'] . "/") . "
 		</body>
 		</html>";
 		header("Refresh: 0; URL=" . $url);
@@ -4129,17 +4224,17 @@ function sed_selectbox($check, $name, $values, $empty_option = TRUE, $key_isvalu
 		$values = explode(',', $values);
 	}
 
-	$selected = ($isMultiple) ? 'selected="selected"' : 'selected="selected"';
-	$first_option = ($empty_option) ? "<option value=\"\" " . (($check == '') ? $selected : '') . ">---</option>" : '';
+	$selected = 'selected="selected"';
+	$first_option = ($empty_option) ? '<option value="" ' . (($check == '') ? $selected : '') . '>---</option>' : '';
 
-	$htmlAttributes = "";
-	foreach ($additionalAttributes as $attribute => $attrValue) {
-		$htmlAttributes .= " " . $attribute . "=\"" . $attrValue . "\"";
+	$attributes = array('name' => $name);
+	if ($isMultiple) {
+		$attributes['multiple'] = 'multiple';
 	}
 
-	$multipleAttr = ($isMultiple) ? ' multiple' : '';
+	$attributes = array_merge($attributes, $additionalAttributes);
 
-	$result = "<select name=\"$name\"" . $multipleAttr . $htmlAttributes . ">";
+	$result = '<select' . sed_attr($attributes) . '>';
 	$result .= $first_option;
 
 	foreach ($values as $k => $x) {
@@ -4147,10 +4242,10 @@ function sed_selectbox($check, $name, $values, $empty_option = TRUE, $key_isvalu
 		$v = ($isArray && $key_isvalue) ? $k : $x;
 		$selected = ($isMultiple && in_array($v, (array)$check)) ? 'selected="selected"' : ($v == $check ? 'selected="selected"' : '');
 		$optionValue = ($disableSedCc) ? $x : sed_cc($x);
-		$result .= "<option value=\"$v\" $selected>" . $optionValue . "</option>";
+		$result .= '<option value="' . $v . '" ' . $selected . '>' . $optionValue . '</option>';
 	}
 
-	$result .= "</select>";
+	$result .= '</select>';
 	return $result;
 }
 
