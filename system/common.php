@@ -34,19 +34,6 @@ mb_internal_encoding('UTF-8'); // New v171
 
 $sql_config = sed_sql_query("SELECT config_owner, config_cat, config_name, config_value FROM $db_config");
 
-if (sed_sql_numrows($sql_config) < 100) {
-	define('SED_ADMIN', TRUE);
-	require_once(SED_ROOT . '/system/functions.admin.php');
-	unset($query);
-
-	foreach ($cfgmap as $i => $line) {
-		$query[] = "('core','" . $line[0] . "','" . $line[1] . "','" . $line[2] . "'," . (int)$line[3] . ",'" . $line[4] . "')";
-	}
-	$query = implode(",", $query);
-
-	$sql = sed_sql_query("INSERT INTO $db_config (config_owner, config_cat, config_order, config_name, config_type, config_value) VALUES " . $query);
-}
-
 while ($row = sed_sql_fetchassoc($sql_config)) {
 	if ($row['config_owner'] == 'core') {
 		$cfg[$row['config_name']] = $row['config_value'];
@@ -183,6 +170,11 @@ $usr['messages'] = 0;
 
 session_start();
 
+if (empty($_SESSION['guest_sourcekey'])) {
+	$_SESSION['guest_sourcekey'] = md5(sed_unique(16));
+}
+$usr['sourcekey'] = $_SESSION['guest_sourcekey'];
+
 if (isset($_SESSION[$sys['site_id'] . '_n']) && ($cfg['authmode'] == 2 || $cfg['authmode'] == 3)) {
 	$rsedition = $_SESSION[$sys['site_id'] . '_n'];
 	$rseditiop = $_SESSION[$sys['site_id'] . '_p'];
@@ -210,6 +202,7 @@ if (isset($rsedition) && $rsedition > 0 && $cfg['authmode'] > 0) {
 		if ($row['user_maingrp'] > 3) {
 			$usr['id'] = $row['user_id'];
 			$usr['sessionid'] = ($cfg['authmode'] == 1) ? sed_hash($row['user_lastvisit'], 2) : sed_hash($row['user_secret'], 2);
+			$usr['sourcekey'] = md5($row['user_secret'] . $row['user_lastvisit']);
 			$usr['name'] = $row['user_name'];
 			$usr['maingrp'] = $row['user_maingrp'];
 			$usr['lastvisit'] = $row['user_lastvisit'];
@@ -625,7 +618,7 @@ if (!isset($sed_dic) && (sed_stat_get("version") >= 177)) {
 /* ======== Menus ======== */
 
 if (!isset($sed_menu) && (sed_stat_get("version") > 177)) {
-	$sql = sed_sql_query("SELECT * FROM sed_menu WHERE 1 ORDER BY menu_position ASC");
+	$sql = sed_sql_query("SELECT * FROM $db_menu WHERE 1 ORDER BY menu_position ASC");
 	while ($row = sed_sql_fetchassoc($sql)) {
 		$menu_tree[$row['menu_pid']][$row['menu_id']] = $row;
 		$menu_row[$row['menu_id']] = $row;

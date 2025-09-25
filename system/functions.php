@@ -1479,11 +1479,11 @@ function sed_build_ratings($code, $url, $display, $allow = true)
 	$alr_rated = sed_sql_result(sed_sql_query("SELECT COUNT(*) FROM " . $db_rated . " WHERE rated_userid=" . $usr['id'] . " AND rated_code = '" . sed_sql_prep($code) . "'"), 0, 'COUNT(*)');
 
 	if ($ina == 'send' && $newrate >= 1 && $newrate <= 10 && $usr['auth_write_rat'] && $alr_rated <= 0 && $allow) {
-		
-		if ($ajax && !sed_is_ajax()) {
+
+		if ($ajax && !sed_check_csrf()) {
 			sed_die(true, 404);
 			exit;
-		}		
+		}
 
 		$sql = sed_sql_query("SELECT * FROM $db_ratings WHERE rating_code='$code' LIMIT 1");
 
@@ -2104,6 +2104,17 @@ function sed_cc($text, $ent_quotes = null, $bbmode = FALSE)
 }
 
 /** 
+ * Check CSRF token in headers
+ * 
+ * @return bool
+ */
+function sed_check_csrf()
+{
+	$csrf = isset($_SERVER['HTTP_X_SEDITIO_CSRF']) ? $_SERVER['HTTP_X_SEDITIO_CSRF'] : '';
+	return $csrf === sed_sourcekey();
+}
+
+/** 
  * Checks GET anti-XSS parameter 
  * 
  * @return bool 
@@ -2128,12 +2139,18 @@ function sed_check_xp()
 	global $xp;
 
 	$sk = sed_sourcekey();
-	if ($_SERVER["REQUEST_METHOD"] == 'POST' && !defined('SED_AUTH') && !defined('SED_DISABLE_XFORM')) {
+
+	if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SERVER['HTTP_X_SEDITIO_CSRF'])) {
+		if (!sed_check_csrf()) {
+			sed_diefatal('Invalid CSRF token for AJAX POST request.');
+		}
+	} elseif ($_SERVER['REQUEST_METHOD'] == 'POST' && !defined('SED_AUTH') && !defined('SED_DISABLE_XFORM')) {
 		if (empty($xp) || $xp != $sk) {
 			sed_diefatal('Wrong parameter in the URL.');
 		}
 	}
-	return ($sk);
+
+	return $sk;
 }
 
 /**
@@ -2927,8 +2944,9 @@ function sed_htmlmetas($description = '', $keywords = '', $robots_index = 1, $ro
     <meta name=\"description\" content=\"" . $description . "\" />
     <meta name=\"keywords\" content=\"" . $keywords . "\" />
     <meta name=\"robots\" content=\"" . $robots . "\" />
-    <meta name=\"generator\" content=\"Seditio by Neocrome & Seditio Team https://seditio.org\" />
+    <meta name=\"generator\" content=\"Seditio CMS https://seditio.org\" />
     <meta http-equiv=\"last-modified\" content=\"" . gmdate("D, d M Y H:i:s") . " GMT\" />
+	<meta name=\"csrf-token\" content=\"" . sed_sourcekey() . "\" />
     <link rel=\"shortcut icon\" href=\"favicon.ico\" />";
 	return ($result);
 }
@@ -3599,16 +3617,6 @@ function sed_is_ssl()   // New in 175
 }
 
 /** 
- * Check X_SEDITIO_AJAX in headers
- * 
- * @return bool
- */
-function sed_is_ajax() {
-    return isset($_SERVER['HTTP_X_SEDITIO_AJAX']) 
-           && $_SERVER['HTTP_X_SEDITIO_AJAX'] === 'good-seditio-ajax';
-}
-
-/** 
  * Check user agent is bot? 
  * 
  * @return bool
@@ -4052,39 +4060,84 @@ function sed_mail($fmail, $subject, $body, $headers = '', $param = '', $content 
 	}
 }
 
-/** 
- * Menu tree generation
- * 
- * @return string
+/**
+ * Generate a menu tree
+ *
+ * @param array $menus Array of menu items
+ * @param int $parent_id Parent menu ID
+ * @param int $level Current menu level
+ * @param bool $only_parent Return only the parent item
+ * @param bool $only_childrensonlevel Return only children at the current level
+ * @param string $class Additional CSS class for the menu
+ * @return string|null HTML menu code or null if the menu is empty
  */
 function sed_menu_tree($menus, $parent_id, $level = 0, $only_parent = false, $only_childrensonlevel = false, $class = "")
 {
 	global $sys;
+
+	// Check if the menu exists for the given parent_id
 	if (is_array($menus) && isset($menus[$parent_id])) {
 		$class = (!empty($class)) ? " " . $class : "";
 		$tree = "<ul class=\"level-" . $level . $class . "\">";
+
 		if ($only_parent == false) {
 			$level++;
 			foreach ($menus[$parent_id] as $item) {
+				// Skip hidden menu items
+				if ($item['menu_visible'] != 1) {
+					continue;
+				}
+
 				$item['menu_url'] = ($item['menu_url'] == '/') ? $sys['dir_uri'] : $item['menu_url'];
+				// Prepare attributes array with data-mid and optional target
+				$attributes = array('data-mid' => $item['menu_id']);
+				if (!empty($item['menu_target'])) {
+					$attributes['target'] = $item['menu_target'];
+				}
+
 				if ($only_childrensonlevel) {
-					$tree .= "<li>" . sed_link($item['menu_url'],  $item['menu_title'], array('data-mid' => $item['menu_id'])) . "</li>";
+					$tree .= "<li>" . sed_link($item['menu_url'], $item['menu_title'], $attributes) . "</li>";
 				} else {
-					$has_children = isset($menus[$item['menu_id']]) ? " class=\"has-children\"" : "";
-					$tree .= "<li" . $has_children . ">" . sed_link($item['menu_url'],  $item['menu_title'], array('data-mid' => $item['menu_id']));
-					$tree .=  sed_menu_tree($menus, $item['menu_id'], $level);
+					// Check for visible children to apply 'has-children' class
+					$has_children = false;
+					if (isset($menus[$item['menu_id']])) {
+						foreach ($menus[$item['menu_id']] as $child) {
+							if ($child['menu_visible'] == 1) {
+								$has_children = true;
+								break;
+							}
+						}
+					}
+					$has_children_class = $has_children ? " class=\"has-children\"" : "";
+					$tree .= "<li" . $has_children_class . ">" . sed_link($item['menu_url'], $item['menu_title'], $attributes);
+					$tree .= sed_menu_tree($menus, $item['menu_id'], $level, false, false, $class);
 					$tree .= "</li>";
 				}
 			}
+			// Return null if no visible items remain after filtering
+			if ($tree == "<ul class=\"level-" . ($level - 1) . $class . "\">") {
+				return null;
+			}
 		} elseif ($only_parent) {
 			$item = $menus[$parent_id];
-			$tree = (!empty($item['menu_url'])) ? sed_link($item['menu_url'],  $item['menu_title'], array('data-mid' => $item['menu_id'])) : "<span data-mid=\"" . $item['menu_id'] . "\">" . $item['menu_title'] . "</span>";
+			// Skip hidden parent item
+			if ($item['menu_visible'] != 1) {
+				return null;
+			}
+			// Prepare attributes array with data-mid and optional target
+			$attributes = array('data-mid' => $item['menu_id']);
+			if (!empty($item['menu_target'])) {
+				$attributes['target'] = $item['menu_target'];
+			}
+			$tree = (!empty($item['menu_url'])) ? sed_link($item['menu_url'], $item['menu_title'], $attributes) : "<span data-mid=\"" . $item['menu_id'] . "\">" . $item['menu_title'] . "</span>";
 			return $tree;
 		}
+
 		$tree .= "</ul>";
 	} else {
 		return null;
 	}
+
 	return $tree;
 }
 
@@ -5259,7 +5312,8 @@ function sed_sourcekey()
 {
 	global $usr;
 
-	$result = ($usr['id'] > 0) ? mb_strtoupper(mb_substr($usr['sessionid'], 0, 6)) : 'GUEST';
+	$sourcekey = mb_strtoupper(mb_substr($usr['sourcekey'], 0, 6));
+	$result = ($usr['id'] > 0) ? $sourcekey : 'GUEST_' . $sourcekey;
 	return ($result);
 }
 
