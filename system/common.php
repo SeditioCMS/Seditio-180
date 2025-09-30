@@ -51,10 +51,7 @@ $sys['site_id'] = 'sed' . substr(md5(empty($cfg['site_secret']) ? $cfg['mainurl'
 $online_timedout = $sys['now'] - $cfg['timedout'];
 $cfg['doctype'] = sed_setdoctype($cfg['doctypeid']);
 $cfg['css'] = $cfg['defaultskin'];
-
 $usr['ip'] = sed_get_userip();
-
-$cfg['mobile_client'] = sed_mobile_detect();
 $sys['unique'] = sed_unique(16);
 
 /* ================================== */
@@ -493,15 +490,21 @@ if (!file_exists($mskin)) {
 	}
 }
 
-$usr['skin_lang'] = SED_ROOT . '/skins/' . $usr['skin'] . '/' . $usr['skin_raw'] . '.' . $usr['lang'] . '.lang.php';
+$skin = $usr['skin'];
+
+$usr['skin_lang'] = defined('SED_ADMIN') && !empty($cfg['adminskin'])
+	? SED_ROOT . '/system/adminskin/' . $cfg['adminskin'] . '/' . $cfg['adminskin'] . '.' . $usr['lang'] . '.lang.php'
+	: SED_ROOT . '/skins/' . $usr['skin'] . '/' . $usr['skin_raw'] . '.' . $usr['lang'] . '.lang.php';
 
 if (@file_exists($usr['skin_lang'])) {
 	require($usr['skin_lang']);
 }
 
-require(SED_ROOT . '/skins/' . $usr['skin'] . '/' . $usr['skin'] . '.php');
+$usr['skin_file'] = defined('SED_ADMIN') && !empty($cfg['adminskin'])
+	? SED_ROOT . '/system/adminskin/' . $cfg['adminskin'] . '/' . $cfg['adminskin'] . '.php'
+	: SED_ROOT . '/skins/' . $usr['skin'] . '/' . $usr['skin'] . '.php';
 
-$skin = $usr['skin'];
+require($usr['skin_file']);
 
 /* ======== Basic statistics ======== */
 
