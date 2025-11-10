@@ -442,7 +442,7 @@ $toptitle .= " " . $cfg['separator'] . " " . sed_link(sed_url("forums", "m=posts
 $toptitle .= ($usr['isadmin']) ? " *" : '';
 
 $sys['sublocation'] = $fs_title;
-$out['subtitle'] = $L['Forums'] . " - " . sed_cc($ft_title);
+$out['subtitle'] = ($curpage > 0) ? $L['Forums'] . " - " . sed_cc($ft_title) . " (" . $L['Page'] . " " . ($curpage + 1) . ")" : $L['Forums'] . " - " . sed_cc($ft_title);
 
 /**/
 $title_tags[] = array('{MAINTITLE}', '{SUBTITLE}', '{TITLE}');
@@ -522,7 +522,7 @@ if (!$cfg['disable_polls'] && $ft_poll > 0) {
 		} else {
 			$polls_info = $L['polls_notyetvoted'];
 
-			$ajax_send = sed_url("forums", "m=posts&q=" . $q . "&a=send&" . sed_xg() . "&poll=" . $ft_poll . "&vote=" . $po_id . "&ajax=1");
+			$ajax_send = sed_url("forums", "m=posts&q=" . $q . "&a=send&" . sed_xg() . "&poll=" . $ft_poll . "&ajax=1");
 			$onclick = ($cfg['ajax']) ? "event.preventDefault(); sedjs.ajaxbind({'url': '" . $ajax_send . "', 'format':  'html', 'method':  'POST', 'update':  '#pollajx', 'loading': '#pollvotes', 'formid':  '#pollvotes'});" : "";
 
 			$xpoll->assign(array(
