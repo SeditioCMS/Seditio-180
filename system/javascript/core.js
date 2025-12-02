@@ -1,3 +1,5 @@
+"use strict";
+
 var sedjs = {
     /**
      * Execute a function when the DOM is fully loaded.
@@ -190,6 +192,71 @@ var sedjs = {
     redirect: function(url) {
         location.href = url.options[url.selectedIndex].value;
     },
+	
+	/**
+	 * Updates URL query parameters from the selected <option> value.
+	 * Fully replaces existing parameters with new ones, removes duplicates,
+	 * preserves unrelated params, produces clean URL (no &&, ??, ?& etc.).
+	 * Empty value removes all parameters that were in the option value.
+	 * Pure ES5 – works in any browser.
+	 *
+	 * @param {HTMLSelectElement} selectElement - the changed <select>
+	 */
+	redirectWithParam: function(selectElement) {
+		var paramString = selectElement.value.replace(/^\s+|\s+$/g, '');
+		var pathname    = window.location.pathname;
+		var hash        = window.location.hash;
+		var search      = window.location.search;
+
+		var currentParams = {};
+		if (search) {
+			var pairs = search.substring(1).split('&');
+			var i, pair, pos, key, val;
+			for (i = 0; i < pairs.length; i++) {
+				pair = pairs[i];
+				if (!pair) continue;
+				pos = pair.indexOf('=');
+				if (pos === -1) {
+					key = decodeURIComponent(pair);
+					val = '';
+				} else {
+					key = decodeURIComponent(pair.substr(0, pos));
+					val = decodeURIComponent(pair.substr(pos + 1));
+				}
+				if (key) currentParams[key] = val;
+			}
+		}
+
+		if (paramString === '') {
+			delete currentParams['filial'];
+		} else {
+			var newPairs = paramString.split('&');
+			var j, newPair, newPos, newKey, newVal;
+			for (j = 0; j < newPairs.length; j++) {
+				newPair = newPairs[j];
+				if (!newPair) continue;
+				newPos = newPair.indexOf('=');
+				if (newPos === -1) {
+					newKey = decodeURIComponent(newPair);
+					newVal = '';
+				} else {
+					newKey = decodeURIComponent(newPair.substr(0, newPos));
+					newVal = decodeURIComponent(newPair.substr(newPos + 1));
+				}
+				if (newKey) currentParams[newKey] = newVal;
+			}
+		}
+
+		var finalParts = [];
+		for (var finalKey in currentParams) {
+			if (currentParams.hasOwnProperty(finalKey)) {
+				finalParts.push(encodeURIComponent(finalKey) + '=' + encodeURIComponent(currentParams[finalKey]));
+			}
+		}
+
+		var newSearch = finalParts.length ? '?' + finalParts.join('&') : '';
+		window.location.href = pathname + newSearch + hash;
+	},
 
     /**
      * Display a confirmation dialog with a specified message.
