@@ -34,6 +34,13 @@ $dformsize = "";
 $dformmaxsize = "";
 $dformcols = "";
 $dformrows = "";
+$formwysiwyg = "noeditor";
+
+$dextralocation	= "pages";
+$dextratype = "tinyint";
+$dextrasize = "2";
+
+sed_extrafield_add($dextralocation, $dcode, $dextratype, $dextrasize);
 
 $sql = sed_sql_query("INSERT into $db_dic 
 	(dic_title, 
@@ -46,7 +53,11 @@ $sql = sed_sql_query("INSERT into $db_dic
 	dic_form_size,
 	dic_form_maxsize,
 	dic_form_cols,
-	dic_form_rows             
+	dic_form_rows,
+	dic_form_wysiwyg,
+	dic_extra_location,	
+	dic_extra_type,	
+	dic_extra_size
 	) 
 	VALUES 
 	('" . sed_sql_prep($dtitle) . "', 
@@ -59,17 +70,21 @@ $sql = sed_sql_query("INSERT into $db_dic
 	'" . sed_sql_prep($dformsize) . "',
 	'" . sed_sql_prep($dformmaxsize) . "',
 	'" . sed_sql_prep($dformcols) . "',
-	'" . sed_sql_prep($dformrows) . "')");
+	'" . sed_sql_prep($dformrows) . "',	
+	'" . sed_sql_prep($formwysiwyg) . "',
+	'" . sed_sql_prep($dextralocation) . "',
+	'" . sed_sql_prep($dextratype) . "',
+	'" . sed_sql_prep($dextrasize) . "')
+	");
 
 $did = sed_sql_insertid();
 
 $sql = sed_sql_query("INSERT into $db_dic_items (ditem_dicid, ditem_title, ditem_code, ditem_children, ditem_defval) 
 		VALUES (" . (int)$did . ", 'Yes', '1', '0', '0')");
+		
 $sql = sed_sql_query("INSERT into $db_dic_items (ditem_dicid, ditem_title, ditem_code, ditem_children, ditem_defval) 
 		VALUES (" . (int)$did . ", 'No', '0', '0', '1')");
 
 sed_log("Added new dic & terms #" . $did, 'adm');
-
-sed_extrafield_add("pages", "slider", "tinyint", "2");
 
 sed_cache_clear('sed_dic');
